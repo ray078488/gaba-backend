@@ -1,127 +1,124 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('gaba_token') || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Check if token exists and fetch user profile
   useEffect(() => {
-    const storedUser = localStorage.getItem('royalUser');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
+    const loadUser = async () => {
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
+      try {
+        const res = await fetch('/api/auth/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        } else {
+          // Token expired or invalid
+          logout();
+        }
+      } catch (err) {
+        console.error('Failed to load user profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
+  }, [token]);
+
+  // Login handler
   const login = async (email, password) => {
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/users/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
+      if (!res.ok) {
         throw new Error(data.message || 'Login failed');
       }
 
-      setUser(data);
-      localStorage.setItem('royalUser', JSON.stringify(data));
-      setLoading(false);
-      return true;
+      localStorage.setItem('gaba_token', data.Token);
+      setToken(data.Token);
+      setUser({
+        User_ID: data.User_ID,
+        Name: data.Name,
+        Email: data.Email,
+        Role: data.Role
+      });
+      return { success: true };
     } catch (err) {
       setError(err.message);
-      setLoading(false);
-      return false;
+      return { success: false, message: err.message };
     }
   };
 
-  const register = async (name, email, password) => {
+  // Signup handler
+  const signup = async (name, email, password) => {
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/users/register', {
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      setUser(data);
-      localStorage.setItem('royalUser', JSON.stringify(data));
-      setLoading(false);
-      return true;
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-      return false;
-    }
-  };
-
-  const updateProfile = async (profileData) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify({ name, email, password })
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Profile update failed');
+      if (!res.ok) {
+        throw new Error(data.message || 'Signup failed');
       }
 
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser);
-      localStorage.setItem('royalUser', JSON.stringify(updatedUser));
-      setLoading(false);
-      return true;
+      localStorage.setItem('gaba_token', data.Token);
+      setToken(data.Token);
+      setUser({
+        User_ID: data.User_ID,
+        Name: data.Name,
+        Email: data.Email,
+        Role: data.Role
+      });
+      return { success: true };
     } catch (err) {
       setError(err.message);
-      setLoading(false);
-      return false;
+      return { success: false, message: err.message };
     }
   };
 
+  // Logout handler
   const logout = () => {
+    localStorage.removeItem('gaba_token');
+    setToken(null);
     setUser(null);
-    localStorage.removeItem('royalUser');
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        setError,
-        login,
-        register,
-        updateProfile,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{ user, token, loading, error, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+export const useAuth = () => useContext(AuthContext);

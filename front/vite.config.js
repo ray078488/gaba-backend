@@ -5,18 +5,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 3000,
     proxy: {
       '/api': {
-        target: 'https://gaba-backend.onrender.com',
-        changeOrigin: true,
-        secure: false,
+        target: 'http://localhost:5000',
+        changeOrigin: true
       },
       '/uploads': {
-        target: 'https://gaba-backend.onrender.com',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
+    }
+  }
 });

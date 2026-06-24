@@ -1,47 +1,75 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import morgan from 'morgan';
-import connectDB from './config/db.js';
-import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const db = require('./config/db');
 
-// Load routes
-import userRoutes from './routes/userRoutes.js';
-import productRoutes from './routes/productRoutes.js';
-import orderRoutes from './routes/orderRoutes.js';
-
-// Configure dotenv
+// Load environment variables
 dotenv.config();
-
-// Connect to MongoDB
-connectDB();
 
 const app = express();
 
+const path = require('path');
+
 // Middlewares
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-// Health Check API
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Royal Backend API is running smoothly' });
+// Log incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
 });
 
-// Bind API routers
-app.use('/api/users', userRoutes);
+// Import route modules
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/products');
+const orderRoutes = require('./routes/orders');
+
+// Register routes
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 
-// Error handlers
-app.use(notFound);
-app.use(errorHandler);
+// Root route welcome message
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to the GABA E-Commerce REST API!',
+    status: 'online',
+    database_mode: db.isMySQL() ? 'MySQL' : 'Local JSON Fallback'
+  });
+});
 
+// Global Error Handler Middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Express error:', err.stack);
+  res.status(500).json({
+    message: 'Something went wrong on the server',
+    error: process.env.NODE_ENV === 'production' ? {} : err.message
+  });
+});
+
+// Start Server
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    // Connect to database
+    await db.connectDB();
+
+    app.listen(PORT, () => {
+      console.log(`=========================================`);
+      console.log(`🚀 GABA Backend Server is running on port ${PORT}`);
+      console.log(`📡 URL: http://localhost:${PORT}`);
+      console.log(`=========================================`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to initialize application:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
