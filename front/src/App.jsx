@@ -41,7 +41,13 @@ function StorefrontContent() {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setProducts(data);
+        const mappedData = data.map(p => {
+          if (p.Image_URL && p.Image_URL.startsWith('/uploads')) {
+            return { ...p, Image_URL: `https://gaba-backend.onrender.com${p.Image_URL}` };
+          }
+          return p;
+        });
+        setProducts(mappedData);
       }
     } catch (err) {
       console.error('Failed to load products:', err);

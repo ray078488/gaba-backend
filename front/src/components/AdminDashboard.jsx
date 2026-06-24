@@ -53,7 +53,8 @@ export default function AdminDashboard({ onBackToStore }) {
         
         const data = await res.json();
         if (res.ok) {
-          setImageUrl(data.url);
+          const absoluteUrl = data.url.startsWith('/uploads') ? `https://gaba-backend.onrender.com${data.url}` : data.url;
+          setImageUrl(absoluteUrl);
         } else {
           alert(data.message || 'Image upload failed.');
         }
@@ -77,7 +78,13 @@ export default function AdminDashboard({ onBackToStore }) {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
-        setProducts(data);
+        const mappedData = data.map(p => {
+          if (p.Image_URL && p.Image_URL.startsWith('/uploads')) {
+            return { ...p, Image_URL: `https://gaba-backend.onrender.com${p.Image_URL}` };
+          }
+          return p;
+        });
+        setProducts(mappedData);
       }
     } catch (err) {
       console.error('Error loading products:', err);
@@ -199,7 +206,9 @@ export default function AdminDashboard({ onBackToStore }) {
     setStock(product.Stock_Quantity);
     setSizes(Array.isArray(product.Size_Available) ? product.Size_Available : [product.Size_Available]);
     setDescription(product.Description);
-    setImageUrl(product.Image_URL);
+    setImageUrl(product.Image_URL && product.Image_URL.startsWith('/uploads') 
+      ? `https://gaba-backend.onrender.com${product.Image_URL}` 
+      : product.Image_URL);
   };
 
   // Delete product
