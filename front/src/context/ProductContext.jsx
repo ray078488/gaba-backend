@@ -26,6 +26,24 @@ export const ProductProvider = ({ children }) => {
     setFilters(initialFilters);
   };
 
+  const normalizeProduct = (p) => {
+    if (!p) return null;
+    return {
+      _id: p._id || p.Product_ID || '',
+      name: p.name || p.Product_Name || '',
+      price: p.price || p.Price || 0,
+      images: Array.isArray(p.images) ? p.images : (p.Image_URL ? [p.Image_URL] : (p.images ? [p.images] : [])),
+      description: p.description || p.Description || '',
+      sizes: p.sizes || p.Size_Available || [],
+      colors: p.colors || [],
+      category: p.category || p.Category || '',
+      stock: p.stock !== undefined ? p.stock : (p.Stock_Quantity !== undefined ? p.Stock_Quantity : 0),
+      rating: p.rating || p.Rating || 0,
+      numReviews: p.numReviews || p.NumReviews || 0,
+      reviews: p.reviews || p.Reviews || []
+    };
+  };
+
   const fetchProducts = useCallback(async (customFilters = filters) => {
     try {
       setLoading(true);
@@ -50,7 +68,7 @@ export const ProductProvider = ({ children }) => {
         throw new Error(data.message || 'Failed to fetch products');
       }
 
-      setProducts(data);
+      setProducts(Array.isArray(data) ? data.map(normalizeProduct) : []);
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -65,7 +83,7 @@ export const ProductProvider = ({ children }) => {
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch product');
       }
-      return data;
+      return normalizeProduct(data);
     } catch (err) {
       console.error(err);
       return null;
