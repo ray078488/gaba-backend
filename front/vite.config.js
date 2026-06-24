@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/uploads': {
+        target: 'https://gaba-backend.onrender.com',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
